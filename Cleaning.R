@@ -62,6 +62,15 @@ df$`What is your role?` <- factor(df$`What is your role?`, levels=c(
                                                               "I am a Red Hat Account Manager"
                                                               ))
 
+df <- df %>% mutate(
+              company = case_when(
+                `What is your role?` == "I am NOT a Red Hat OpenShift Customer" ~ "external",
+                `What is your role?` == "I am a Red Hat OpenShift Customer" ~ "external",
+                `What is your role?` == "I am a Red Hat Consultant" ~ "internal",
+                `What is your role?` == "I am a Red Hat Solution Architect" ~ "internal",
+                `What is your role?` == "I am a Red Hat Account Manager" ~ "internal"
+)) 
+
 #team size cleaning
 df <- df %>% 
   rename(team_size=`What is your development team size?`) %>% #temp rename to work with case_when
@@ -531,7 +540,7 @@ df %>%
     labels = scales::percent) + #Make scale 0-1 and %
   facet_wrap(~`What is your development team size?`) +
   #theme for deck
- # coord_flip() + #flip y
+ coord_flip() + #flip y
   scale_fill_brewer(palette = "Set2") + #colors
   ggthemes::theme_tufte(base_family = "sans") + #remove excess ink
   #labels
@@ -583,7 +592,7 @@ df %>%
   filter(year=="2019") %>%
   #group to count responses
   ggplot(aes(umux.lite)) +
-  geom_histogram(bins=8) +
+  geom_histogram(bins=10) +
   coord_cartesian(xlim=c(1,5)) +
   geom_vline(xintercept = 4,color="mediumspringgreen") +
   #theme for deck
@@ -596,8 +605,30 @@ df %>%
     caption = "2019 scores only"
   ) 
 
-ggsave("/Users/carlpearson/Documents/r_github/dev_exp_survey/Plots/umux.png",device="png",
+aggsave("/Users/carlpearson/Documents/r_github/dev_exp_survey/Plots/umux.png",device="png",
        width=10,height=8,bg="transparent")
+
+df %>% 
+  filter(year=="2019") %>%
+  #group to count responses
+  group_by(company) %>%
+  summarise(umux.lite.avg = mean(umux.lite),sd=sd(umux.lite,na.rm = T),n=n(),se=sd/sqrt(n),marg=se*zval) %>%
+  ggplot(aes(x=company,y=umux.lite.avg)) +
+  geom_bar(stat="identity") +
+  coord_cartesian(xlim=c(1,5)) +
+  geom_hline(yintercept = 4,color="mediumspringgreen") +
+  #theme for deck
+  ggthemes::theme_tufte(base_family = "sans") + #remove excess ink
+  labs(  #labels
+    y="Count",
+    x="",
+    title="UMUX-lite score",
+    subtitle = "Green line indicates \'good\' score benchmark",
+    caption = "2019 scores only"
+  ) 
+
+aggsave("/Users/carlpearson/Documents/r_github/dev_exp_survey/Plots/umux.png",device="png",
+        width=10,height=8,bg="transparent")
 
 #umux across version
 
@@ -883,3 +914,24 @@ df %>%
 
 ggsave("/Users/carlpearson/Documents/r_github/dev_exp_survey/Plots/sat-resources18.png",device="png",
        width=12,height=8,bg="transparent")
+
+#getting started
+
+n18 <- nrow(df[df$year=="2018",])
+n19 <- nrow(df[df$year=="2019",])
+
+
+df %>%
+  select(id,year,`How do you get started creating new applications for OpenShift? (Check all that apply) - Selected Choice`) %>%
+  separate(`How do you get started creating new applications for OpenShift? (Check all that apply) - Selected Choice`,into = paste0("gs",1:10),sep = ",") %>%
+  group_by(year) %>%
+  mutate(total=n_distinct(id)) %>%
+  pivot_longer(contains("gs")) %>%
+  na.omit(value) %>%
+  group_by(value,year,total) %>%
+  summarize(count=n()) %>%
+  group_by(year) %>%
+  mutate(prop = count / total) %>%
+  
+  
+
